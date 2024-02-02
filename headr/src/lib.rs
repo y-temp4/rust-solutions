@@ -11,8 +11,6 @@ pub struct Config {
 type MyResult<T> = Result<T, Box<dyn Error>>;
 
 pub fn get_args() -> MyResult<Config> {
-    unimplemented!();
-
     let matches = App::new("headr")
         .version("0.1.0")
         .author("Ken Youens-Clark <kyclark@gmail.com>")
@@ -25,33 +23,50 @@ pub fn get_args() -> MyResult<Config> {
                 .default_value("-"),
         )
         .arg(
-            Arg::with_name("number")
+            Arg::with_name("lines")
                 .short("n")
-                .long("number")
-                .help("Number lines")
-                .takes_value(false)
-                .conflicts_with("number_nonblank"),
+                .long("lines")
+                .value_name("LINES")
+                .help("Number of lines")
+                .default_value("10"),
         )
         .arg(
-            Arg::with_name("number_nonblank")
-                .short("b")
-                .long("number-nonblank")
-                .help("Number non-blank lines")
-                .takes_value(false),
+            Arg::with_name("bytes")
+                .short("c")
+                .long("bytes")
+                .value_name("BYTES")
+                .takes_value(true)
+                .conflicts_with("lines")
+                .help("Number of bytes"),
         )
         .get_matches();
 
-    // Ok(Config {
-    //     files: matches.values_of_lossy("files").unwrap(),
-    //     lines: matches.is_present("number"),
-    //     bytes: matches.is_present("number_nonblank"),
-    // });
+    let lines = matches
+        .value_of("lines")
+        .map(parse_positive_int)
+        .transpose()
+        .map_err(|e| format!("illegal line count -- {}", e))?;
+
+    let bytes = matches
+        .value_of("bytes")
+        .map(parse_positive_int)
+        .transpose()
+        .map_err(|e| format!("illegal byte count -- {}", e))?;
+
+    Ok(Config {
+        files: matches.values_of_lossy("files").unwrap(),
+        lines: lines.unwrap(),
+        bytes,
+    })
 }
 
 fn parse_positive_int(val: &str) -> MyResult<usize> {
     match val.parse() {
         Ok(n) if n > 0 => Ok(n),
         _ => Err(From::from(val)),
+        // 以下でもいける
+        // _ => Err(val.into()),
+        // _ => Err(Into::into(val)),
     }
 }
 
