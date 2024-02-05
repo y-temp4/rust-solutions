@@ -2,7 +2,7 @@ use clap::{App, Arg};
 use std::{
     error::Error,
     fs::File,
-    io::{self, BufRead, BufReader},
+    io::{self, BufRead, BufReader, Read},
 };
 
 #[derive(Debug)]
@@ -106,14 +106,25 @@ pub fn run(config: Config) -> MyResult<()> {
             Err(err) => eprintln!("{}: {}", filename, err),
             // Ok(_) => println!("Opened {}", filename),
             Ok(mut file) => {
-                let mut line = String::new();
-                for _ in 0..config.lines {
-                    let bytes = file.read_line(&mut line)?;
-                    if bytes == 0 {
-                        break;
+                if let Some(num_bytes) = config.bytes {
+                    let bytes: Result<Vec<_>, _> = file.bytes().take(num_bytes).collect(); // 以下も同じ
+                                                                                           // let bytes = file.bytes().take(num_bytes).collect::<Result<Vec<_>, _>>();
+                    print!("{}", String::from_utf8_lossy(&bytes?));
+                    // 以下も同じ
+                    // let mut handle = file.take(num_bytes as u64);
+                    // let mut buffer = vec![0; num_bytes];
+                    // let bytes_read = handle.read(&mut buffer)?;
+                    // print!("{}", String::from_utf8_lossy(&buffer[..bytes_read]))
+                } else {
+                    let mut line = String::new();
+                    for _ in 0..config.lines {
+                        let bytes = file.read_line(&mut line)?;
+                        if bytes == 0 {
+                            break;
+                        }
+                        print!("{}", line);
+                        line.clear();
                     }
-                    print!("{}", line);
-                    line.clear();
                 }
             }
         }
